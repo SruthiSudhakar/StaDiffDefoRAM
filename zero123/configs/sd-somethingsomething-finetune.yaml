@@ -29,7 +29,7 @@ model:
       target: ldm.modules.diffusionmodules.openaimodel.UNetModel
       params:
         image_size: 32 # unused
-        in_channels: 16 # NOTE THAT WE CHANGED SOMETHING
+        in_channels: 8 # NOTE THAT WE CHANGED SOMETHING
         out_channels: 4
         model_channels: 320
         attention_resolutions: [ 4, 2, 1 ]

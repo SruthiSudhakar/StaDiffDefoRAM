@@ -64,9 +64,9 @@ def sample_model(input_im, model, sampler, precision, h, w, ddim_steps, n_sample
     with precision_scope('cuda'):
         with model.ema_scope():
             input_im_encoded = model.get_learned_conditioning(input_im).tile(n_samples, 1, 1)
-            cond_handpose = np.array([0,0,0,0,0,0])
+            cond_handpose = torch.tensor([0,0,0,0,0,0]).to(input_im_encoded.device)
             cond_handpose[TEMPLATE_TO_CONDITION_LABEL[handpose]]=1
-            c = torch.cat([input_im_encoded, cond_handpose.repeat(n_samples, 1, 1)], dim=-1)
+            c = torch.cat([input_im_encoded, cond_handpose.tile(n_samples, 1, 1)], dim=-1)
             c = model.cc_projection(c)
             cond = {}
             cond['c_crossattn'] = [c]
@@ -130,7 +130,8 @@ def preprocess_image(models, input_im, preprocess):
     return input_im
 #96527
 def run_demo():
-    filename = "/proj/vondrick3/datasets/Something-Somethingv2/data/rawframes/32174/img_00019.jpg"
+    filename = "/proj/vondrick3/datasets/Something-Somethingv2/data/rawframes/202366/img_00009.jpg"
+    filenameTarget = "/proj/vondrick3/datasets/Something-Somethingv2/data/rawframes/202366/img_00012.jpg"
     device_idx=_GPU_INDEX
     ckpt='/proj/vondrick3/sruthi/zero123/zero123/logs/good_2023-04-27T11-21-36_sd-somethingsomething-finetune/checkpoints/last.ckpt'
     config='configs/sd-somethingsomething-finetune.yaml'
@@ -139,7 +140,7 @@ def run_demo():
     #     print('old device_idx:', device_idx)
     #     device_idx = int(sys.argv[1])
     #     print('new device_idx:', device_idx)
-    save_path = "/".join(ckpt.split("/")[:-3])+"/"+ckpt.split("/")[-1][:-5]+"/"+"_".join(filename.split("/")[-2:])
+    save_path = "/".join(ckpt.split("/")[:-2])+"/"+ckpt.split("/")[-1][:-4]+"/"+"_".join(filename.split("/")[-2:])
     if not os.path.exists("/".join(save_path.split("/")[:-1])):
         os.mkdir("/".join(save_path.split("/")[:-1]))
     device = f'cuda:{device_idx}'
@@ -151,10 +152,12 @@ def run_demo():
     models['turncam'] = load_model_from_config(config, ckpt, device=device)
     print('Instantiating Carvekit HiInterface...')
     models['carvekit'] = create_carvekit_interface()
-    raw_im = Image.open(filename)
-    input_im = preprocess_image(models, raw_im, False)
-    show_in_im1 = Image.fromarray((input_im * 255.0).astype(np.uint8))
-    show_in_im1.save(f"{save_path}_input.png")
+    input_im = preprocess_image(models, Image.open(filename), False)
+    show_in_imI = Image.fromarray((input_im * 255.0).astype(np.uint8))
+    show_in_imI.save(f"{save_path}_input.png")
+    target_im = preprocess_image(models, Image.open(filenameTarget), False)
+    show_in_imT = Image.fromarray((target_im * 255.0).astype(np.uint8))
+    show_in_imT.save(f"{save_path}_target.png")
 
     input_im = transforms.ToTensor()(input_im).unsqueeze(0).to(device)
     input_im = input_im * 2 - 1

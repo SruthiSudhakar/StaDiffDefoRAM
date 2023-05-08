@@ -55,7 +55,7 @@ Run training command:
 python main.py \
     -t \
     --base configs/sd-somethingsomething-finetune.yaml \
-    --gpus 0,1,2,3,4,5,6,7 \
+    --gpus 0, \
     --scale_lr False \
     --num_nodes 1 \
     --seed 42 \

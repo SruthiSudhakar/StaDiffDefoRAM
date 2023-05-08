@@ -130,9 +130,9 @@ def preprocess_image(models, input_im, preprocess):
     return input_im
 #96527
 def run_demo():
-    filename = "/proj/vondrick3/datasets/Something-Somethingv2/data/rawframes/202366/img_00009.jpg"
+    filename = "/proj/vondrick3/datasets/Something-Somethingv2/data/rawframes/32174/img_00019.jpg"
     device_idx=_GPU_INDEX
-    ckpt='/proj/vondrick3/sruthi/zero123/zero123/logs/pt_nw_2023-05-05T10-23-57_sd-somethingsomething-finetune/checkpoints/trainstep_checkpoints/epoch=000146-step=000000879.ckpt'
+    ckpt='/proj/vondrick3/sruthi/zero123/zero123/logs/2023-05-05T10-23-57_sd-somethingsomething-finetune/checkpoints/trainstep_checkpoints/epoch=000146-step=000000879.ckpt'
     config='configs/sd-somethingsomething-finetune.yaml'
     # print('sys.argv:', _GPU_INDEX)
     # if len(sys.argv) > 1:
@@ -165,7 +165,7 @@ def run_demo():
     file_list = os.path.join(root_dir, 'output/files_with_hands.txt')
     point_tracks = torch.tensor(np.load(f"{root_dir}/output/full_trajs_e.npy")).to(device)
     paths_with_masks = open(file_list).readlines()[0].split(root_dir+"/")[1:][:point_tracks.shape[1]]
-    image_index = paths_with_masks.index("img_0000"+str(int(filename.split("/")[-1][4:9]))+".jpg")
+    image_index = paths_with_masks.index("img_000"+str(int(filename.split("/")[-1][4:9]))+".jpg")
 
     hand_masks1 = preprocess_image(models, Image.open(os.path.join(root_dir,'masks',paths_with_masks[image_index+1])).convert('L'), False)[np.newaxis,:,:]
     hand_masks2 = preprocess_image(models, Image.open(os.path.join(root_dir,'masks',paths_with_masks[image_index+2])).convert('L'), False)[np.newaxis,:,:]

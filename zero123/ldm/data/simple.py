@@ -368,20 +368,21 @@ class SomethingSomethingData(Dataset):
         cond_im = self.process_im(self.load_im(os.path.join(folder_name, self.data[index]['frames_list'][index_cond]), color))
         # cond_handpose = np.array([0,0,0,0,0,0])
         # cond_handpose[TEMPLATE_TO_CONDITION_LABEL[self.data[index]['template'].split(" ")[0].lower()]]=1
-        # cond_masks = self.tform(self.load_im_grayscale(os.path.join(folder_name, 'masks', self.data[index]['frames_list'][index_cond+1]), 'L'))
-        # for idx in range(index_cond+2, index_target+1):
-        #     cond_masks = np.concatenate((cond_masks, self.tform(self.load_im_grayscale(os.path.join(folder_name, 'masks', self.data[index]['frames_list'][idx]), color))), axis=2)
-        cond_mask_o = self.process_im(self.load_im(os.path.join(folder_name, 'masks', self.data[index]['frames_list'][index_cond]), color))
-        cond_mask_f = self.process_im(self.load_im(os.path.join(folder_name, 'masks', self.data[index]['frames_list'][index_target]), color))
+        cond_masks = self.tform(self.load_im_grayscale(os.path.join(folder_name, 'masks', self.data[index]['frames_list'][index_cond+1]), 'L'))
+        for idx in range(index_cond+2, index_target+1):
+            cond_masks = np.concatenate((cond_masks, self.tform(self.load_im_grayscale(os.path.join(folder_name, 'masks', self.data[index]['frames_list'][idx]), color))), axis=2)
+        # cond_mask_o = self.process_im(self.load_im(os.path.join(folder_name, 'masks', self.data[index]['frames_list'][index_cond]), color))
+        # cond_mask_f = self.process_im(self.load_im(os.path.join(folder_name, 'masks', self.data[index]['frames_list'][index_target]), color))
         target_im = self.process_im(self.load_im(os.path.join(folder_name, self.data[index]['frames_list'][index_target]), color))
         # target_handpose = np.load(os.path.join(folder_name, '%03d.npy' % index_target))
 
         data["image_target"] = target_im
         data["image_cond"] = cond_im
-        # data["cond_handpose"] = cond_handpose
-        data["cond_masks_o"] = cond_mask_o
-        data["cond_masks_f"] = cond_mask_f
-        # data["cond_trajs"] = self.data[index]['trajectories'][index_cond+1:index_target+1]
+        data["cond_masks"] = cond_masks
+        # data["cond_masks_o"] = cond_mask_o
+        # data["cond_masks_o"] = cond_mask_o
+        # data["cond_masks_f"] = cond_mask_f
+        data["cond_trajs"] = self.data[index]['trajectories'][index_cond+1:index_target+1]
         if self.postprocess is not None:
             data = self.postprocess(data)
         return data

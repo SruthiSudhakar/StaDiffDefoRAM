@@ -1,0 +1,34 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+    
+        {
+            "name": "main.py",
+            "type": "python",
+            "request": "launch",
+            // "module": "torch.distributed.launch",
+            "program": "/proj/vondrick3/sruthi/zero123/zero123/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "main.py",
+                "-t", 
+                "--base", "configs/sd-somethingsomething-finetune.yaml", 
+                "--gpus", "0",
+                "--scale_lr", "False",
+                "--num_nodes", "1",
+                "--seed", "42",
+                "--check_val_every_n_epoch", "10",
+                "--finetune_from", "sd-image-conditioned-v2.ckpt",
+            
+                // "--nproc_per_node", "1", 
+                // "main_swav.py",
+                // "--data_path", "/dataset/imagenet/train",
+            ]
+
+        }
+    ]
+}

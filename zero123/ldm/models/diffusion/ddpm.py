@@ -27,7 +27,7 @@ from ldm.models.autoencoder import VQModelInterface, IdentityFirstStage, Autoenc
 from ldm.modules.diffusionmodules.util import make_beta_schedule, extract_into_tensor, noise_like
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.modules.attention import CrossAttention
-import pdb
+
 
 __conditioning_keys__ = {'concat': 'c_concat',
                          'crossattn': 'c_crossattn',
@@ -521,15 +521,10 @@ class LatentDiffusion(DDPM):
         self.instantiate_first_stage(first_stage_config)
         self.instantiate_cond_stage(cond_stage_config)
         self.cond_stage_forward = cond_stage_forward
-        # construct linear projection layer for transforming point tracks
-        # self.point_tracks_projection = nn.Linear(300, 100)
-        # nn.init.eye_(list(self.point_tracks_projection.parameters())[0][:100, :300])
-        # nn.init.zeros_(list(self.point_tracks_projection.parameters())[1])
-        # self.point_tracks_projection.requires_grad_(True)
 
         # construct linear projection layer for concatenating image CLIP embedding and RT
-        self.cc_projection = nn.Linear(1836, 768)#nn.Linear(1636, 768)
-        nn.init.eye_(list(self.cc_projection.parameters())[0][:768, :1836])#:1636])
+        self.cc_projection = nn.Linear(768, 768)
+        nn.init.eye_(list(self.cc_projection.parameters())[0][:768, :768])
         nn.init.zeros_(list(self.cc_projection.parameters())[1])
         self.cc_projection.requires_grad_(True)
         
@@ -728,13 +723,10 @@ class LatentDiffusion(DDPM):
     def get_input(self, batch, k, return_first_stage_outputs=False, force_c_encode=False,
                   cond_key=None, return_original_cond=False, bs=None, uncond=0.05):
         x = super().get_input(batch, k)
-        # T = batch['cond_handpose'].to(memory_format=torch.contiguous_format).float()
-        # cond_masks = super().get_input(batch,'cond_masks').to(self.device) # batch['cond_masks'].to(memory_format=torch.contiguous_format).float()
-        # cond_trajectories = batch['cond_trajs'].to(memory_format=torch.contiguous_format).float().to(self.device)
+        # T = batch['T'].to(memory_format=torch.contiguous_format).float()
+        
         if bs is not None:
             x = x[:bs]
-            # cond_masks=cond_masks[:bs]
-            # cond_trajectories=cond_trajectories[:bs]
             # T = T[:bs].to(self.device)
 
         x = x.to(self.device)
@@ -742,12 +734,8 @@ class LatentDiffusion(DDPM):
         z = self.get_first_stage_encoding(encoder_posterior).detach()
         cond_key = cond_key or self.cond_stage_key
         xc = super().get_input(batch, cond_key).to(self.device)
-        cond_mask_o = super().get_input(batch,'cond_masks_o').to(self.device) # batch['cond_masks'].to(memory_format=torch.contiguous_format).float()
-        cond_mask_f = super().get_input(batch,'cond_masks_f').to(self.device) # batch['cond_masks'].to(memory_format=torch.contiguous_format).float()
         if bs is not None:
             xc = xc[:bs]
-            cond_mask_o = cond_mask_o[:bs]
-            cond_mask_f = cond_mask_f[:bs]
         cond = {}
 
         # To support classifier-free guidance, randomly drop out only text conditioning 5%, only image conditioning 5%, and both 5%.
@@ -761,11 +749,8 @@ class LatentDiffusion(DDPM):
         with torch.enable_grad():
             clip_emb = self.get_learned_conditioning(xc).detach()
             null_prompt = self.get_learned_conditioning([""]).detach()
-            # handtracks_emb = self.get_learned_conditioning(cond_masks).detach()
-            # point_projections = rearrange(cond_trajectories, "n f p x -> n 1 (f p x)", x=2)#self.point_tracks_projection(rearrange(cond_trajectories, "n f p x -> n 1 (f p x)", x=2))
-            cond["c_crossattn"] = [torch.where(prompt_mask, null_prompt, clip_emb)] # [self.cc_projection(torch.cat([torch.where(prompt_mask, null_prompt, clip_emb)], handtracks_emb, point_projections], dim=-1))] #n=# items in batch, f=#frames in each datapt, p=#points tracked, x=#dimensions of each tracked pt
-        concat_all_stream2 = torch.cat((self.encode_first_stage((xc.to(self.device))).mode().detach(), self.encode_first_stage((cond_mask_o.to(self.device))).mode().detach(), self.encode_first_stage((cond_mask_f.to(self.device))).mode().detach()), 1)
-        cond["c_concat"] = [input_mask * concat_all_stream2]
+            cond["c_crossattn"] = [self.cc_projection(torch.where(prompt_mask, null_prompt, clip_emb), dim=-1)]
+        cond["c_concat"] = [input_mask * self.encode_first_stage((xc.to(self.device))).mode().detach()]
         out = [z, cond]
         if return_first_stage_outputs:
             xrec = self.decode_first_stage(z)
@@ -1270,7 +1255,7 @@ class LatentDiffusion(DDPM):
         c = repeat(c, '1 ... -> b ...', b=batch_size).to(self.device)
         cond = {}
         cond["c_crossattn"] = [c]
-        cond["c_concat"] = [torch.zeros([batch_size, 12, image_size // 8, image_size // 8]).to(self.device)]
+        cond["c_concat"] = [torch.zeros([batch_size, 4, image_size // 8, image_size // 8]).to(self.device)]
         return cond
 
     @torch.no_grad()
@@ -1423,15 +1408,11 @@ class LatentDiffusion(DDPM):
             print('Diffusion model optimizing logvar')
             params.append(self.logvar)
 
-        # if self.point_tracks_projection is not None:
-        #     params = params + list(self.point_tracks_projection.parameters())
-        #     print('========== optimizing for point tracks projection weight ==========')
         if self.cc_projection is not None:
             params = params + list(self.cc_projection.parameters())
             print('========== optimizing for cc projection weight ==========')
 
         opt = torch.optim.AdamW([{"params": self.model.parameters(), "lr": lr},
-                                # {"params": self.point_tracks_projection.parameters(), "lr": 10. * lr},
                                 {"params": self.cc_projection.parameters(), "lr": 10. * lr}], lr=lr)
         if self.use_scheduler:
             assert 'target' in self.scheduler_config

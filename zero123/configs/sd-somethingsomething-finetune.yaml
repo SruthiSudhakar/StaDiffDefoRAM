@@ -1,5 +1,5 @@
 model:
-  base_learning_rate: 1.0e-04  # NOTE THAT WE CHANGED SOMETHING
+  base_learning_rate: 1.0e-05  # NOTE THAT WE CHANGED SOMETHING
   target: ldm.models.diffusion.ddpm.LatentDiffusion
   params:
     linear_start: 0.00085
@@ -29,7 +29,7 @@ model:
       target: ldm.modules.diffusionmodules.openaimodel.UNetModel
       params:
         image_size: 32 # unused
-        in_channels: 16 # NOTE THAT WE CHANGED SOMETHING
+        in_channels: 8 # NOTE THAT WE CHANGED SOMETHING
         out_channels: 4
         model_channels: 320
         attention_resolutions: [ 4, 2, 1 ]
@@ -74,7 +74,7 @@ data:
   params:
     root_dir: '/proj/vondrick3/datasets/Something-Somethingv2/data/rawframes'
     labels_dir: '/proj/vondrick3/datasets/Something-Somethingv2/labels'
-    batch_size: 192  # NOTE THAT WE CHANGED SOMETHING
+    batch_size: 4  # NOTE THAT WE CHANGED SOMETHING
     num_workers: 16
 
     train:

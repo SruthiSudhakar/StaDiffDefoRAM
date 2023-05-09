@@ -1,5 +1,5 @@
 model:
-  base_learning_rate: 1.0e-04  # NOTE THAT WE CHANGED SOMETHING
+  base_learning_rate: 1.0e-05  # NOTE THAT WE CHANGED SOMETHING
   target: ldm.models.diffusion.ddpm.LatentDiffusion
   params:
     linear_start: 0.00085
@@ -72,9 +72,9 @@ model:
 data:
   target: ldm.data.simple.SomethingSomethingDataModuleFromConfig
   params:
-    root_dir: '/proj/vondrick3/datasets/Something-Somethingv2/data/rawframes'
-    labels_dir: '/proj/vondrick3/datasets/Something-Somethingv2/labels'
-    batch_size: 192  # NOTE THAT WE CHANGED SOMETHING
+    root_dir: '/local/vondrick/sruthi/SSv2/Something-Somethingv2/data/rawframes'
+    labels_dir: '/local/vondrick/sruthi/SSv2/Something-Somethingv2/labels'
+    batch_size: 64  # NOTE THAT WE CHANGED SOMETHING
     num_workers: 16
 
     train:
@@ -93,11 +93,11 @@ lightning:
   metrics_over_trainsteps_checkpoint: True
   modelcheckpoint:
     params:
-      every_n_train_steps: 20  # NOTE THAT WE CHANGED SOMETHING
+      every_n_train_steps: 100  # NOTE THAT WE CHANGED SOMETHING
   callbacks:
     metrics_over_trainsteps_checkpoint:
       params:
-        every_n_train_steps: 20 # NOTE THAT WE CHANGED SOMETHING
+        every_n_train_steps: 100 # NOTE THAT WE CHANGED SOMETHING
     image_logger:
       target: main.ImageLogger
       params:
@@ -119,4 +119,3 @@ lightning:
     val_check_interval: 5000000 # really sorry
     num_sanity_val_steps: 0
     accumulate_grad_batches: 1
-    max_epochs: 200

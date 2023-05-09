@@ -133,14 +133,14 @@ def run_demo():
     filename = "/proj/vondrick3/datasets/Something-Somethingv2/data/rawframes/202366/img_00009.jpg"
     filenameTarget = "/proj/vondrick3/datasets/Something-Somethingv2/data/rawframes/202366/img_00012.jpg"
     device_idx=_GPU_INDEX
-    ckpt='/proj/vondrick3/sruthi/zero123/zero123/logs/good_2023-04-27T11-21-36_sd-somethingsomething-finetune/checkpoints/last.ckpt'
+    ckpt='/proj/vondrick3/sruthi/StaDiffDefoRAM/zero123/logs/2023-05-09T14-46-12_sd-somethingsomething-finetune/checkpoints/trainstep_checkpoints/epoch=000021-step=000001399.ckpt'
     config='configs/sd-somethingsomething-finetune.yaml'
     # print('sys.argv:', _GPU_INDEX)
     # if len(sys.argv) > 1:
     #     print('old device_idx:', device_idx)
     #     device_idx = int(sys.argv[1])
     #     print('new device_idx:', device_idx)
-    save_path = "/".join(ckpt.split("/")[:-2])+"/"+ckpt.split("/")[-1][:-4]+"/"+"_".join(filename.split("/")[-2:])
+    save_path = "/".join(ckpt.split("/")[:-3])+"/"+ckpt.split("/")[-1][:-4]+"/"+"_".join(filename.split("/")[-2:])
     if not os.path.exists("/".join(save_path.split("/")[:-1])):
         os.mkdir("/".join(save_path.split("/")[:-1]))
     device = f'cuda:{device_idx}'
@@ -177,22 +177,4 @@ def run_demo():
         output_ims[i].save(f"{save_path}_temp_sample{i}.png")
 
 if __name__ == '__main__':
-    # all_folders=os.listdir('/proj/vondrick3/datasets/Something-Somethingv2/data/rawframes')
-    # labels = json.load(open('/proj/vondrick3/datasets/Something-Somethingv2/labels/train.json'))
-    # file = open('trainlist.txt','w')
-    # for x in labels:
-    #     if x['id'] in all_folders and x['template'] in SET_OF_SSV2_LABELS :
-    #         if len(os.listdir("/proj/vondrick3/datasets/Something-Somethingv2/data/rawframes/"+x['id'])[10:-10])>5:
-    #             print('writing', x['id'])
-    #             file.write(x['id']+"\n")
-    # file.close()
-    # labels = json.load(open('/proj/vondrick3/datasets/Something-Somethingv2/labels/validation.json'))
-    # file = open('vallist.txt','w')
-    # for x in labels:
-    #     if x['id'] in all_folders and x['template'] in SET_OF_SSV2_LABELS :
-    #         if len(os.listdir("/proj/vondrick3/datasets/Something-Somethingv2/data/rawframes/"+x['id'])[10:-10])>5:
-    #             file.write(x['id']+"\n")
-    # file.close()
-
-
     fire.Fire(run_demo)

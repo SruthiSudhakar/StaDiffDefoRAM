@@ -130,7 +130,7 @@ def run_demo():
     filename = "/proj/vondrick3/datasets/Something-Somethingv2/data/rawframes/32174/img_00019.jpg"
     filename_target = "/proj/vondrick3/datasets/Something-Somethingv2/data/rawframes/32174/img_00022.jpg"
     device_idx=_GPU_INDEX
-    ckpt='/proj/vondrick3/sruthi/zero123/zero123/logs/2023-05-09T14-48-31_sd-somethingsomething-finetune/checkpoints/trainstep_checkpoints/epoch=000019-step=000001299.ckpt'
+    ckpt='/proj/vondrick3/sruthi/zero123/zero123/logs/2023-05-09T14-48-31_sd-somethingsomething-finetune/checkpoints/trainstep_checkpoints/epoch=000038-step=000002499.ckpt'
     config='configs/sd-somethingsomething-finetune.yaml'
     # print('sys.argv:', _GPU_INDEX)
     # if len(sys.argv) > 1:
@@ -169,14 +169,12 @@ def run_demo():
     show_tg = Image.fromarray((target_im * 255.0).astype(np.uint8))
     show_tg.save(f"{save_path}_target.png")
 
-    pdb.set_trace()
-    
-    hand_masks1 = preprocess_image(models, Image.open(os.path.join(root_dir,'masks',paths_with_masks[image_index+1])), False)
-    showmask_1 = Image.fromarray((hand_masks1 * 255.0).astype(np.uint8))
-    showmask_1.save(f"{save_path}_handmask_1.png")
-    hand_masks1 = transforms.ToTensor()(hand_masks1).unsqueeze(0).to(device)
-    hand_masks1 = hand_masks1 * 2 - 1
-    hand_masks1 = transforms.functional.resize(hand_masks1, [256,256])
+    hand_masks0 = preprocess_image(models, Image.open(os.path.join(root_dir,'masks',paths_with_masks[image_index])), False)
+    showmask_0 = Image.fromarray((hand_masks0 * 255.0).astype(np.uint8))
+    showmask_0.save(f"{save_path}_handmask_0.png")
+    hand_masks0 = transforms.ToTensor()(hand_masks0).unsqueeze(0).to(device)
+    hand_masks0 = hand_masks0 * 2 - 1
+    hand_masks0 = transforms.functional.resize(hand_masks0, [256,256])
 
     hand_masks3 = preprocess_image(models, Image.open(os.path.join(root_dir,'masks',paths_with_masks[image_index+3])), False)
     showmask_3 = Image.fromarray((hand_masks3 * 255.0).astype(np.uint8))
@@ -195,7 +193,7 @@ def run_demo():
 
     sampler = DDIMSampler(models['turncam'])
     x_samples_ddim = sample_model(input_im, models['turncam'], sampler, 'fp32', 256, 256,
-                                    50, 4, 3.0, 1.0, hand_masks1, hand_masks3)
+                                    50, 4, 3.0, 1.0, hand_masks0, hand_masks3)
 
     output_ims = []
     for x_sample in x_samples_ddim:

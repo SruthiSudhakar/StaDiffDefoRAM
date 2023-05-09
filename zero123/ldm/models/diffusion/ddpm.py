@@ -27,7 +27,7 @@ from ldm.models.autoencoder import VQModelInterface, IdentityFirstStage, Autoenc
 from ldm.modules.diffusionmodules.util import make_beta_schedule, extract_into_tensor, noise_like
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.modules.attention import CrossAttention
-
+import pdb
 
 __conditioning_keys__ = {'concat': 'c_concat',
                          'crossattn': 'c_crossattn',
@@ -734,8 +734,12 @@ class LatentDiffusion(DDPM):
         z = self.get_first_stage_encoding(encoder_posterior).detach()
         cond_key = cond_key or self.cond_stage_key
         xc = super().get_input(batch, cond_key).to(self.device)
+        cond_masks_o = super().get_input(batch, 'cond_masks_o').to(self.device)
+        cond_masks_f = super().get_input(batch, 'cond_masks_f').to(self.device)
         if bs is not None:
             xc = xc[:bs]
+            cond_masks_o = cond_masks_o[:bs]
+            cond_masks_f = cond_masks_f[:bs]
         cond = {}
 
         # To support classifier-free guidance, randomly drop out only text conditioning 5%, only image conditioning 5%, and both 5%.
@@ -750,7 +754,8 @@ class LatentDiffusion(DDPM):
             clip_emb = self.get_learned_conditioning(xc).detach()
             null_prompt = self.get_learned_conditioning([""]).detach()
             cond["c_crossattn"] = [self.cc_projection(torch.where(prompt_mask, null_prompt, clip_emb))]
-        cond["c_concat"] = [input_mask * self.encode_first_stage((xc.to(self.device))).mode().detach()]
+        c_concat = torch.cat((self.encode_first_stage(xc.to(self.device)).mode().detach(), self.encode_first_stage(cond_masks_o.to(self.device)).mode().detach(), self.encode_first_stage(cond_masks_f.to(self.device)).mode().detach()), 1)
+        cond['c_concat'] = [input_mask * c_concat]
         out = [z, cond]
         if return_first_stage_outputs:
             xrec = self.decode_first_stage(z)
@@ -1255,7 +1260,7 @@ class LatentDiffusion(DDPM):
         c = repeat(c, '1 ... -> b ...', b=batch_size).to(self.device)
         cond = {}
         cond["c_crossattn"] = [c]
-        cond["c_concat"] = [torch.zeros([batch_size, 4, image_size // 8, image_size // 8]).to(self.device)]
+        cond["c_concat"] = [torch.zeros([batch_size, 12, image_size // 8, image_size // 8]).to(self.device)]
         return cond
 
     @torch.no_grad()

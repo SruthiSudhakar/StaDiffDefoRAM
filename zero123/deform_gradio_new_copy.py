@@ -59,22 +59,19 @@ def load_model_from_config(config, ckpt, device, verbose=False):
 
 @torch.no_grad()
 def sample_model(input_im, model, sampler, precision, h, w, ddim_steps, n_samples, scale,
-                 ddim_eta, cond_trajectories,cond_masks):
+                 ddim_eta, handmask_1,handmask_2):
     precision_scope = autocast if precision == 'autocast' else nullcontext
     with precision_scope('cuda'):
         with model.ema_scope():
             input_im_encoded = model.get_learned_conditioning(input_im).tile(n_samples, 1, 1)
-            cond_masks_encoded = model.get_learned_conditioning(cond_masks).repeat(n_samples, 1, 1)
-            cond_trajectories = rearrange(cond_trajectories, "n f c x-> n 1 (f c x)").repeat(n_samples, 1, 1)
-            c = torch.cat([input_im_encoded, cond_masks_encoded, cond_trajectories], dim=-1)
-            c = model.cc_projection(c)
+            c = model.cc_projection(input_im_encoded)
             cond = {}
             cond['c_crossattn'] = [c]
-            c_concat = model.encode_first_stage((input_im.to(c.device))).mode().detach()
+            c_concat = torch.cat((model.encode_first_stage((input_im)).mode().detach(), model.encode_first_stage((handmask_1)).mode().detach(), model.encode_first_stage((handmask_2)).mode().detach()),1)
             cond['c_concat'] = [c_concat.repeat(n_samples, 1, 1, 1)]
             if scale != 1.0:
                 uc = {}
-                uc['c_concat'] = [torch.zeros(n_samples, 4, h // 8, w // 8).to(c.device)]
+                uc['c_concat'] = [torch.zeros(n_samples, 12, h // 8, w // 8).to(c.device)]
                 uc['c_crossattn'] = [torch.zeros_like(c).to(c.device)]
             else:
                 uc = None
@@ -131,8 +128,9 @@ def preprocess_image(models, input_im, preprocess):
 #96527
 def run_demo():
     filename = "/proj/vondrick3/datasets/Something-Somethingv2/data/rawframes/32174/img_00019.jpg"
+    filename_target = "/proj/vondrick3/datasets/Something-Somethingv2/data/rawframes/32174/img_00022.jpg"
     device_idx=_GPU_INDEX
-    ckpt='/proj/vondrick3/sruthi/zero123/zero123/logs/2023-05-05T10-23-57_sd-somethingsomething-finetune/checkpoints/trainstep_checkpoints/epoch=000146-step=000000879.ckpt'
+    ckpt='/proj/vondrick3/sruthi/zero123/zero123/logs/2023-05-09T14-48-31_sd-somethingsomething-finetune/checkpoints/trainstep_checkpoints/epoch=000019-step=000001299.ckpt'
     config='configs/sd-somethingsomething-finetune.yaml'
     # print('sys.argv:', _GPU_INDEX)
     # if len(sys.argv) > 1:
@@ -151,8 +149,7 @@ def run_demo():
     models['turncam'] = load_model_from_config(config, ckpt, device=device)
     print('Instantiating Carvekit HiInterface...')
     models['carvekit'] = create_carvekit_interface()
-    raw_im = Image.open(filename)
-    input_im = preprocess_image(models, raw_im, False)
+    input_im = preprocess_image(models, Image.open(filename), False)
     show_in_im1 = Image.fromarray((input_im * 255.0).astype(np.uint8))
     show_in_im1.save(f"{save_path}_input.png")
 
@@ -167,16 +164,26 @@ def run_demo():
     paths_with_masks = open(file_list).readlines()[0].split(root_dir+"/")[1:][:point_tracks.shape[1]]
     image_index = paths_with_masks.index("img_000"+str(int(filename.split("/")[-1][4:9]))+".jpg")
 
-    hand_masks1 = preprocess_image(models, Image.open(os.path.join(root_dir,'masks',paths_with_masks[image_index+1])).convert('L'), False)[np.newaxis,:,:]
-    hand_masks2 = preprocess_image(models, Image.open(os.path.join(root_dir,'masks',paths_with_masks[image_index+2])).convert('L'), False)[np.newaxis,:,:]
-    hand_masks3 = preprocess_image(models, Image.open(os.path.join(root_dir,'masks',paths_with_masks[image_index+3])).convert('L'), False)[np.newaxis,:,:]
+    print('IS THE TARGET IMAGE:', paths_with_masks[image_index+1], paths_with_masks[image_index+3])
+    target_im = preprocess_image(models, Image.open("/".join(filename.split("/")[:-1])+"/"+paths_with_masks[image_index+3]), False)
+    show_tg = Image.fromarray((target_im * 255.0).astype(np.uint8))
+    show_tg.save(f"{save_path}_target.png")
+
+    pdb.set_trace()
+    
+    hand_masks1 = preprocess_image(models, Image.open(os.path.join(root_dir,'masks',paths_with_masks[image_index+1])), False)
+    showmask_1 = Image.fromarray((hand_masks1 * 255.0).astype(np.uint8))
+    showmask_1.save(f"{save_path}_handmask_1.png")
+    hand_masks1 = transforms.ToTensor()(hand_masks1).unsqueeze(0).to(device)
     hand_masks1 = hand_masks1 * 2 - 1
-    hand_masks2 = hand_masks2 * 2 - 1
+    hand_masks1 = transforms.functional.resize(hand_masks1, [256,256])
+
+    hand_masks3 = preprocess_image(models, Image.open(os.path.join(root_dir,'masks',paths_with_masks[image_index+3])), False)
+    showmask_3 = Image.fromarray((hand_masks3 * 255.0).astype(np.uint8))
+    showmask_3.save(f"{save_path}_handmask_3.png")
+    hand_masks3 = transforms.ToTensor()(hand_masks3).unsqueeze(0).to(device)
     hand_masks3 = hand_masks3 * 2 - 1
-    cond_masks = np.concatenate((hand_masks1,hand_masks2,hand_masks3), axis=0)
-    cond_masks = torch.tensor(cond_masks).unsqueeze(0).to(device)
-
-
+    hand_masks3 = transforms.functional.resize(hand_masks3, [256,256])
     # r3m = load_r3m("resnet50") # resnet18, resnet34
     # r3m.eval()
     # r3m.to(device)
@@ -188,7 +195,7 @@ def run_demo():
 
     sampler = DDIMSampler(models['turncam'])
     x_samples_ddim = sample_model(input_im, models['turncam'], sampler, 'fp32', 256, 256,
-                                    50, 4, 3.0, 1.0, point_tracks[:,image_index:image_index+3,:,:], cond_masks)
+                                    50, 4, 3.0, 1.0, hand_masks1, hand_masks3)
 
     output_ims = []
     for x_sample in x_samples_ddim:

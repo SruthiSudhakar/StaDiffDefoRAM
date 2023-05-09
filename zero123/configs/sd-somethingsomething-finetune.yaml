@@ -29,7 +29,7 @@ model:
       target: ldm.modules.diffusionmodules.openaimodel.UNetModel
       params:
         image_size: 32 # unused
-        in_channels: 8 # NOTE THAT WE CHANGED SOMETHING
+        in_channels: 16 # NOTE THAT WE CHANGED SOMETHING
         out_channels: 4
         model_channels: 320
         attention_resolutions: [ 4, 2, 1 ]
@@ -74,7 +74,7 @@ data:
   params:
     root_dir: '/proj/vondrick3/datasets/Something-Somethingv2/data/rawframes'
     labels_dir: '/proj/vondrick3/datasets/Something-Somethingv2/labels'
-    batch_size: 4  # NOTE THAT WE CHANGED SOMETHING
+    batch_size: 64  # NOTE THAT WE CHANGED SOMETHING
     num_workers: 16
 
     train:
@@ -93,11 +93,11 @@ lightning:
   metrics_over_trainsteps_checkpoint: True
   modelcheckpoint:
     params:
-      every_n_train_steps: 20  # NOTE THAT WE CHANGED SOMETHING
+      every_n_train_steps: 100  # NOTE THAT WE CHANGED SOMETHING
   callbacks:
     metrics_over_trainsteps_checkpoint:
       params:
-        every_n_train_steps: 20 # NOTE THAT WE CHANGED SOMETHING
+        every_n_train_steps: 100  # NOTE THAT WE CHANGED SOMETHING
     image_logger:
       target: main.ImageLogger
       params:
@@ -119,4 +119,3 @@ lightning:
     val_check_interval: 5000000 # really sorry
     num_sanity_val_steps: 0
     accumulate_grad_batches: 1
-    max_epochs: 200

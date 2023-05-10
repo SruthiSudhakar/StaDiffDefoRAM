@@ -52,15 +52,15 @@ Download image-conditioned stable diffusion checkpoint released by [Lambda Labs]
 
 Run training command:  
 ```
-python main.py \
-    -t \
-    --base configs/sd-somethingsomething-finetune.yaml \
-    --gpus 0,1,2,3,4,5,6,7 \
-    --scale_lr False \
-    --num_nodes 1 \
-    --seed 42 \
-    --check_val_every_n_epoch 10 \
-    --finetune_from sd-image-conditioned-v2.ckpt 
+  python main.py \
+      -t \
+      --base configs/sd-somethingsomething-finetune.yaml \
+      --gpus 4, \
+      --scale_lr False \
+      --num_nodes 1 \
+      --seed 42 \
+      --check_val_every_n_epoch 10 \
+      --finetune_from sd-image-conditioned-v2.ckpt 
 ```
 
 Note that this training script is set for an 8-GPU system, each with 80GB of VRAM. As discussed in the paper, empirically the large batch size is very important for "stably" training stable diffusion. If you have smaller GPUs, consider using smaller batch size and gradient accumulation to obtain a similar effective batch size. Please check [this thread](https://github.com/cvlab-columbia/zero123/issues/22#issuecomment-1493492145) for the train/val split we used in the paper.

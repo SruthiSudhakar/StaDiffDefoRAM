@@ -523,7 +523,7 @@ class LatentDiffusion(DDPM):
         self.cond_stage_forward = cond_stage_forward
 
         # construct linear projection layer for concatenating image CLIP embedding and RT
-        self.cc_projection = nn.Linear(768, 768)
+        self.cc_projection = nn.Linear(1168, 768)
         nn.init.eye_(list(self.cc_projection.parameters())[0][:768, :768])
         nn.init.zeros_(list(self.cc_projection.parameters())[1])
         self.cc_projection.requires_grad_(True)
@@ -723,6 +723,8 @@ class LatentDiffusion(DDPM):
     def get_input(self, batch, k, return_first_stage_outputs=False, force_c_encode=False,
                   cond_key=None, return_original_cond=False, bs=None, uncond=0.05):
         x = super().get_input(batch, k)
+        pdb.set_trace()
+        point_tracks = batch["cond_trajs"].to(memory_format=torch.contiguous_format).float()
         # T = batch['T'].to(memory_format=torch.contiguous_format).float()
         
         if bs is not None:
@@ -753,7 +755,8 @@ class LatentDiffusion(DDPM):
         with torch.enable_grad():
             clip_emb = self.get_learned_conditioning(xc).detach()
             null_prompt = self.get_learned_conditioning([""]).detach()
-            cond["c_crossattn"] = [self.cc_projection(torch.where(prompt_mask, null_prompt, clip_emb))]
+            point_tracks = rearrange(point_tracks, "n f c x -> n 1 (f c x)")
+            cond["c_crossattn"] = [self.cc_projection(torch.cat((torch.where(prompt_mask, null_prompt, clip_emb), point_tracks), 2))]
         c_concat = torch.cat((self.encode_first_stage(xc.to(self.device)).mode().detach(), self.encode_first_stage(cond_masks_o.to(self.device)).mode().detach(), self.encode_first_stage(cond_masks_f.to(self.device)).mode().detach()), 1)
         cond['c_concat'] = [input_mask * c_concat]
         out = [z, cond]

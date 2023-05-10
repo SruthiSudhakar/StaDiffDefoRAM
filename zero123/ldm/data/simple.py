@@ -381,7 +381,7 @@ class SomethingSomethingData(Dataset):
         # data["cond_handpose"] = cond_handpose
         data["cond_masks_o"] = cond_mask_o
         data["cond_masks_f"] = cond_mask_f
-        # data["cond_trajs"] = self.data[index]['trajectories'][index_cond+1:index_target+1]
+        data["cond_trajs"] = self.data[index]['trajectories'][index_cond:index_target+1]
         if self.postprocess is not None:
             data = self.postprocess(data)
         return data

@@ -300,30 +300,14 @@ class SomethingSomethingData(Dataset):
         self.labels=None
         if validation:
             self.labels = json.load(open(labels_dir+'/validation.json'))
-            data_list = [str(int(x)) for x in open('/proj/vondrick3/sruthi/zero123/zero123/vallist.txt','r').readlines()]
         else:
             self.labels = json.load(open(labels_dir+'/train.json'))
-            data_list = [str(int(x)) for x in open('/proj/vondrick3/sruthi/zero123/zero123/trainlist.txt','r').readlines()]
         self.data = []
         self.all_folders=os.listdir(root_dir)
         total_labels_size = len(self.labels)
         count_wrong_sizes = 0
         for x in self.labels:
-            if x['id'] in self.all_folders and x['template'] in SET_OF_SSV2_LABELS and x['id'] in data_list:
-                if os.path.exists(os.path.join(root_dir, x['id'], 'output/full_trajs_e.npy')):
-                    file_list = os.path.join(root_dir, x['id'], 'output/files_with_hands.txt')
-                    paths_with_masks = open(file_list).readlines()[0].split(os.path.join(root_dir, x['id'])+"/")[1:]
-                    if len(paths_with_masks)>8:
-                        x["trajectories"] = np.load(os.path.join(root_dir, x['id'], 'output/full_trajs_e.npy'))[0]
-                        paths_with_masks = paths_with_masks[:x["trajectories"].shape[0]]
-                        x["frames_list"] = paths_with_masks
-                        try:
-                            assert x["trajectories"].shape[0] > 3 
-                            assert x["trajectories"].shape[1:]==(50,2)
-                            self.data.append(x)
-                        except:
-                            count_wrong_sizes +=1 
-                            print('something wrong:', x["trajectories"].shape)                        
+            self.data.append(x)
         print(f"============= length of dataset {len(self.data)} ============= of {total_labels_size}")
         print(f"============= number of wrong sizes {count_wrong_sizes} =============")
         self.tform = image_transforms
@@ -366,22 +350,10 @@ class SomethingSomethingData(Dataset):
             data["path"] = str(folder_name)
         
         cond_im = self.process_im(self.load_im(os.path.join(folder_name, self.data[index]['frames_list'][index_cond]), color))
-        # cond_handpose = np.array([0,0,0,0,0,0])
-        # cond_handpose[TEMPLATE_TO_CONDITION_LABEL[self.data[index]['template'].split(" ")[0].lower()]]=1
-        # cond_masks = self.tform(self.load_im_grayscale(os.path.join(folder_name, 'masks', self.data[index]['frames_list'][index_cond+1]), 'L'))
-        # for idx in range(index_cond+2, index_target+1):
-        #     cond_masks = np.concatenate((cond_masks, self.tform(self.load_im_grayscale(os.path.join(folder_name, 'masks', self.data[index]['frames_list'][idx]), color))), axis=2)
-        cond_mask_o = self.process_im(self.load_im(os.path.join(folder_name, 'masks', self.data[index]['frames_list'][index_cond]), color))
-        cond_mask_f = self.process_im(self.load_im(os.path.join(folder_name, 'masks', self.data[index]['frames_list'][index_target]), color))
         target_im = self.process_im(self.load_im(os.path.join(folder_name, self.data[index]['frames_list'][index_target]), color))
-        # target_handpose = np.load(os.path.join(folder_name, '%03d.npy' % index_target))
 
         data["image_target"] = target_im
         data["image_cond"] = cond_im
-        # data["cond_handpose"] = cond_handpose
-        data["cond_masks_o"] = cond_mask_o
-        data["cond_masks_f"] = cond_mask_f
-        # data["cond_trajs"] = self.data[index]['trajectories'][index_cond+1:index_target+1]
         if self.postprocess is not None:
             data = self.postprocess(data)
         return data

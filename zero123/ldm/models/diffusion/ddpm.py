@@ -27,7 +27,7 @@ from ldm.models.autoencoder import VQModelInterface, IdentityFirstStage, Autoenc
 from ldm.modules.diffusionmodules.util import make_beta_schedule, extract_into_tensor, noise_like
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.modules.attention import CrossAttention
-
+import pdb
 
 __conditioning_keys__ = {'concat': 'c_concat',
                          'crossattn': 'c_crossattn',
@@ -722,12 +722,11 @@ class LatentDiffusion(DDPM):
     @torch.no_grad()
     def get_input(self, batch, k, return_first_stage_outputs=False, force_c_encode=False,
                   cond_key=None, return_original_cond=False, bs=None, uncond=0.05):
+        pdb.set_trace()
         x = super().get_input(batch, k)
-        # T = batch['T'].to(memory_format=torch.contiguous_format).float()
         
         if bs is not None:
             x = x[:bs]
-            # T = T[:bs].to(self.device)
 
         x = x.to(self.device)
         encoder_posterior = self.encode_first_stage(x)

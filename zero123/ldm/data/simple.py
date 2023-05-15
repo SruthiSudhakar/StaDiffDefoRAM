@@ -302,14 +302,19 @@ class SomethingSomethingData(Dataset):
             self.labels = json.load(open(labels_dir+'/validation.json'))
         else:
             self.labels = json.load(open(labels_dir+'/train.json'))
+        total_count = 0
         self.data = []
-        self.all_folders=os.listdir(root_dir)
         total_labels_size = len(self.labels)
-        count_wrong_sizes = 0
         for x in self.labels:
-            self.data.append(x)
+            curr_cnt = len(os.listdir(os.path.join(root_dir, x['id']))) - 10
+            if curr_cnt > 0:
+                total_count += curr_cnt
+                x['frames_list'] = []
+                for opt in os.listdir(os.path.join(root_dir, x['id']))[5:-5]:
+                    if '.jpg' in opt:
+                        x['frames_list'].append(opt)
+                self.data.append(x)
         print(f"============= length of dataset {len(self.data)} ============= of {total_labels_size}")
-        print(f"============= number of wrong sizes {count_wrong_sizes} =============")
         self.tform = image_transforms
         print("data prep time:", time.time() - start_time)
 
@@ -342,18 +347,15 @@ class SomethingSomethingData(Dataset):
     def __getitem__(self, index):
         data = {}
         folder_name = os.path.join(self.root_dir, self.data[index]['id'])
-        index_cond = random.randint(0, len(self.data[index]['frames_list'])-1 -3)  # without replacement
-        index_target = index_cond + 3
+        reconstruction_index = random.randint(0, len(self.data[index]['frames_list'])-1)  # without replacement
         color = [1., 1., 1., 1.]
 
         if self.return_paths:
             data["path"] = str(folder_name)
         
-        cond_im = self.process_im(self.load_im(os.path.join(folder_name, self.data[index]['frames_list'][index_cond]), color))
-        target_im = self.process_im(self.load_im(os.path.join(folder_name, self.data[index]['frames_list'][index_target]), color))
+        reconstruction_image = self.process_im(self.load_im(os.path.join(folder_name, self.data[index]['frames_list'][reconstruction_index]), color))
 
-        data["image_target"] = target_im
-        data["image_cond"] = cond_im
+        data["image_target"] = reconstruction_image
         if self.postprocess is not None:
             data = self.postprocess(data)
         return data

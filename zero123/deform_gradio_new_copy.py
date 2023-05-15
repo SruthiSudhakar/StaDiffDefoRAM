@@ -59,18 +59,14 @@ def load_model_from_config(config, ckpt, device, verbose=False):
 
 @torch.no_grad()
 def sample_model(input_im, model, sampler, precision, h, w, ddim_steps, n_samples, scale,
-                 ddim_eta, cond_trajectories,cond_masks):
+                 ddim_eta):
     precision_scope = autocast if precision == 'autocast' else nullcontext
     with precision_scope('cuda'):
         with model.ema_scope():
             input_im_encoded = model.get_learned_conditioning(input_im).tile(n_samples, 1, 1)
-            cond_masks_encoded = model.get_learned_conditioning(cond_masks).repeat(n_samples, 1, 1)
-            cond_trajectories = rearrange(cond_trajectories, "n f c x-> n 1 (f c x)").repeat(n_samples, 1, 1)
-            c = torch.cat([input_im_encoded, cond_masks_encoded, cond_trajectories], dim=-1)
-            c = model.cc_projection(c)
             cond = {}
-            cond['c_crossattn'] = [c]
-            c_concat = model.encode_first_stage((input_im.to(c.device))).mode().detach()
+            cond['c_crossattn'] = [input_im_encoded]
+            c_concat = model.encode_first_stage((input_im.to(f'cuda:{_GPU_INDEX}'))).mode().detach()
             cond['c_concat'] = [c_concat.repeat(n_samples, 1, 1, 1)]
             if scale != 1.0:
                 uc = {}
@@ -130,16 +126,16 @@ def preprocess_image(models, input_im, preprocess):
     return input_im
 #96527
 def run_demo():
-    filename = "/proj/vondrick3/datasets/Something-Somethingv2/data/rawframes/32174/img_00019.jpg"
+    filename = "/proj/vondrick3/datasets/FullSSv2/data/rawframes/32174/img_00019.jpg"
     device_idx=_GPU_INDEX
-    ckpt='/proj/vondrick3/sruthi/zero123/zero123/logs/2023-05-05T10-23-57_sd-somethingsomething-finetune/checkpoints/trainstep_checkpoints/epoch=000146-step=000000879.ckpt'
+    ckpt='/proj/vondrick3/sruthi/sameframe_reconstruction/StaDiffDefoRAM/zero123/logs/2023-05-14T07-21-58_sd-somethingsomething-finetune/checkpoints/last.ckpt'
     config='configs/sd-somethingsomething-finetune.yaml'
     # print('sys.argv:', _GPU_INDEX)
     # if len(sys.argv) > 1:
     #     print('old device_idx:', device_idx)
     #     device_idx = int(sys.argv[1])
     #     print('new device_idx:', device_idx)
-    save_path = "/".join(ckpt.split("/")[:-3])+"/"+ckpt.split("/")[-1][:-5]+"/"+"_".join(filename.split("/")[-2:])
+    save_path = "/".join(ckpt.split("/")[:-2])+"/"+ckpt.split("/")[-1][:-5]+"/"+"_".join(filename.split("/")[-2:])
     if not os.path.exists("/".join(save_path.split("/")[:-1])):
         os.mkdir("/".join(save_path.split("/")[:-1]))
     device = f'cuda:{device_idx}'
@@ -160,23 +156,6 @@ def run_demo():
     input_im = input_im * 2 - 1
     input_im = transforms.functional.resize(input_im, [256,256])
 
-
-    root_dir = "/".join(filename.split("/")[:-1])
-    file_list = os.path.join(root_dir, 'output/files_with_hands.txt')
-    point_tracks = torch.tensor(np.load(f"{root_dir}/output/full_trajs_e.npy")).to(device)
-    paths_with_masks = open(file_list).readlines()[0].split(root_dir+"/")[1:][:point_tracks.shape[1]]
-    image_index = paths_with_masks.index("img_000"+str(int(filename.split("/")[-1][4:9]))+".jpg")
-
-    hand_masks1 = preprocess_image(models, Image.open(os.path.join(root_dir,'masks',paths_with_masks[image_index+1])).convert('L'), False)[np.newaxis,:,:]
-    hand_masks2 = preprocess_image(models, Image.open(os.path.join(root_dir,'masks',paths_with_masks[image_index+2])).convert('L'), False)[np.newaxis,:,:]
-    hand_masks3 = preprocess_image(models, Image.open(os.path.join(root_dir,'masks',paths_with_masks[image_index+3])).convert('L'), False)[np.newaxis,:,:]
-    hand_masks1 = hand_masks1 * 2 - 1
-    hand_masks2 = hand_masks2 * 2 - 1
-    hand_masks3 = hand_masks3 * 2 - 1
-    cond_masks = np.concatenate((hand_masks1,hand_masks2,hand_masks3), axis=0)
-    cond_masks = torch.tensor(cond_masks).unsqueeze(0).to(device)
-
-
     # r3m = load_r3m("resnet50") # resnet18, resnet34
     # r3m.eval()
     # r3m.to(device)
@@ -188,7 +167,7 @@ def run_demo():
 
     sampler = DDIMSampler(models['turncam'])
     x_samples_ddim = sample_model(input_im, models['turncam'], sampler, 'fp32', 256, 256,
-                                    50, 4, 3.0, 1.0, point_tracks[:,image_index:image_index+3,:,:], cond_masks)
+                                    50, 4, 3.0, 1.0)
 
     output_ims = []
     for x_sample in x_samples_ddim:

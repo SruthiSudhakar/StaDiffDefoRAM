@@ -522,11 +522,11 @@ class LatentDiffusion(DDPM):
         self.instantiate_cond_stage(cond_stage_config)
         self.cond_stage_forward = cond_stage_forward
 
-        # construct linear projection layer for concatenating image CLIP embedding and RT
-        self.cc_projection = nn.Linear(768, 768)
-        nn.init.eye_(list(self.cc_projection.parameters())[0][:768, :768])
-        nn.init.zeros_(list(self.cc_projection.parameters())[1])
-        self.cc_projection.requires_grad_(True)
+        # # construct linear projection layer for concatenating image CLIP embedding and RT
+        self.cc_projection = None #nn.Linear(768, 768)
+        # nn.init.eye_(list(self.cc_projection.parameters())[0][:768, :768])
+        # nn.init.zeros_(list(self.cc_projection.parameters())[1])
+        # self.cc_projection.requires_grad_(True)
         
         self.clip_denoised = False
         self.bbox_tokenizer = None
@@ -723,19 +723,13 @@ class LatentDiffusion(DDPM):
     def get_input(self, batch, k, return_first_stage_outputs=False, force_c_encode=False,
                   cond_key=None, return_original_cond=False, bs=None, uncond=0.05):
         x = super().get_input(batch, k)
-        # T = batch['T'].to(memory_format=torch.contiguous_format).float()
-        
+
         if bs is not None:
             x = x[:bs]
-            # T = T[:bs].to(self.device)
 
         x = x.to(self.device)
         encoder_posterior = self.encode_first_stage(x)
         z = self.get_first_stage_encoding(encoder_posterior).detach()
-        cond_key = cond_key or self.cond_stage_key
-        xc = super().get_input(batch, cond_key).to(self.device)
-        if bs is not None:
-            xc = xc[:bs]
         cond = {}
 
         # To support classifier-free guidance, randomly drop out only text conditioning 5%, only image conditioning 5%, and both 5%.
@@ -747,16 +741,17 @@ class LatentDiffusion(DDPM):
         # z.shape: [8, 4, 64, 64]; c.shape: [8, 1, 768]
         # print('=========== xc shape ===========', xc.shape)
         with torch.enable_grad():
-            clip_emb = self.get_learned_conditioning(xc).detach()
+            clip_emb = self.get_learned_conditioning(x).detach()
             null_prompt = self.get_learned_conditioning([""]).detach()
-            cond["c_crossattn"] = [self.cc_projection(torch.where(prompt_mask, null_prompt, clip_emb))]
-        cond["c_concat"] = [input_mask * self.encode_first_stage((xc.to(self.device))).mode().detach()]
+            # cond["c_crossattn"] = [self.cc_projection(torch.where(prompt_mask, null_prompt, clip_emb))]
+            cond["c_crossattn"] = [torch.where(prompt_mask, null_prompt, clip_emb)]
+        cond["c_concat"] = [input_mask * self.encode_first_stage((x.to(self.device))).mode().detach()]
         out = [z, cond]
         if return_first_stage_outputs:
             xrec = self.decode_first_stage(z)
             out.extend([x, xrec])
         if return_original_cond:
-            out.append(xc)
+            out.append(x)
         return out
 
     # @torch.no_grad()
@@ -1412,8 +1407,9 @@ class LatentDiffusion(DDPM):
             params = params + list(self.cc_projection.parameters())
             print('========== optimizing for cc projection weight ==========')
 
-        opt = torch.optim.AdamW([{"params": self.model.parameters(), "lr": lr},
-                                {"params": self.cc_projection.parameters(), "lr": 10. * lr}], lr=lr)
+        opt = torch.optim.AdamW([{"params": self.model.parameters(), "lr": lr}],
+                                # {"params": self.cc_projection.parameters(), "lr": 10. * lr}], 
+                                lr=lr)
         if self.use_scheduler:
             assert 'target' in self.scheduler_config
             scheduler = instantiate_from_config(self.scheduler_config)
